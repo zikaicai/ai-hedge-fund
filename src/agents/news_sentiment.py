@@ -47,8 +47,7 @@ def news_sentiment_agent(state: AgentState, agent_id: str = "news_sentiment_agen
         progress.update_status(agent_id, ticker, "Fetching company news")
         company_news = get_company_news(
             ticker=ticker,
-            end_date=end_date,
-            limit=100,
+            limit=10,
             api_key=api_key,
         )
 

@@ -20,6 +20,7 @@ from src.agents.mohnish_pabrai import mohnish_pabrai_agent
 from src.agents.nassim_taleb import nassim_taleb_agent
 from src.agents.news_sentiment import news_sentiment_agent
 from src.agents.growth_agent import growth_analyst_agent
+from src.agents.llm_agent import llm_agent
 
 # Define analyst configuration - single source of truth
 ANALYST_CONFIG = {
@@ -174,6 +175,14 @@ ANALYST_CONFIG = {
         "agent_func": valuation_analyst_agent,
         "type": "analyst",
         "order": 18,
+    },
+    "llm_agent": {
+        "display_name": "LLM Agent",
+        "description": "Generic LLM-based analyst for T+1 trading",
+        "investing_style": "Forwards raw financial, news, insider and price data to a general LLM which returns a next-day trading recommendation.",
+        "agent_func": llm_agent,
+        "type": "analyst",
+        "order": 19,
     },
 }
 

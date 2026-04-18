@@ -167,6 +167,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
         
         # Calculate remaining limit for this position
         remaining_position_limit = position_limit - current_position_value
+        remaining_position_limit = max(remaining_position_limit, 0)
         
         # Ensure we don't exceed available cash
         max_position_size = min(remaining_position_limit, portfolio.get("cash", 0))

@@ -82,7 +82,7 @@ def stanley_druckenmiller_agent(state: AgentState, agent_id: str = "stanley_druc
         insider_trades = get_insider_trades(ticker, end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, limit=50, api_key=api_key)
+        company_news = get_company_news(ticker, limit=10, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching recent price data for momentum")
         prices = get_prices(ticker, start_date=start_date, end_date=end_date, api_key=api_key)

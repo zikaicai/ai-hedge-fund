@@ -38,7 +38,7 @@ def sentiment_analyst_agent(state: AgentState, agent_id: str = "sentiment_analys
         progress.update_status(agent_id, ticker, "Fetching company news")
 
         # Get the company news
-        company_news = get_company_news(ticker, end_date, limit=100, api_key=api_key)
+        company_news = get_company_news(ticker, limit=10, api_key=api_key)
 
         # Get the sentiment from the company news
         sentiment = pd.Series([n.sentiment for n in company_news]).dropna()

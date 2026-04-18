@@ -1,11 +1,14 @@
 """Helper functions for LLM"""
 
 import json
+import threading
 from pydantic import BaseModel
 from src.llm.models import get_model, get_model_info
 from src.utils.progress import progress
 from src.graph.state import AgentState
+import time
 
+lock_call_llm = threading.Lock()
 
 def call_llm(
     prompt: any,
@@ -30,58 +33,60 @@ def call_llm(
         An instance of the specified Pydantic model
     """
     
-    # Extract model configuration if state is provided and agent_name is available
-    if state and agent_name:
-        model_name, model_provider = get_agent_model_config(state, agent_name)
-    else:
-        # Use system defaults when no state or agent_name is provided
-        model_name = "gpt-4.1"
-        model_provider = "OPENAI"
+    with lock_call_llm:
+        # time.sleep(30)
+        # Extract model configuration if state is provided and agent_name is available
+        if state and agent_name:
+            model_name, model_provider = get_agent_model_config(state, agent_name)
+        else:
+            # Use system defaults when no state or agent_name is provided
+            model_name = "gpt-4.1"
+            model_provider = "OPENAI"
 
-    # Extract API keys from state if available
-    api_keys = None
-    if state:
-        request = state.get("metadata", {}).get("request")
-        if request and hasattr(request, 'api_keys'):
-            api_keys = request.api_keys
+        # Extract API keys from state if available
+        api_keys = None
+        if state:
+            request = state.get("metadata", {}).get("request")
+            if request and hasattr(request, 'api_keys'):
+                api_keys = request.api_keys
 
-    model_info = get_model_info(model_name, model_provider)
-    llm = get_model(model_name, model_provider, api_keys)
+        model_info = get_model_info(model_name, model_provider)
+        llm = get_model(model_name, model_provider, api_keys)
 
-    # For non-JSON support models, we can use structured output
-    if not (model_info and not model_info.has_json_mode()):
-        llm = llm.with_structured_output(
-            pydantic_model,
-            method="json_mode",
-        )
+        # For non-JSON support models, we can use structured output
+        if not (model_info and not model_info.has_json_mode()):
+            llm = llm.with_structured_output(
+                pydantic_model,
+                method="json_mode",
+            )
 
-    # Call the LLM with retries
-    for attempt in range(max_retries):
-        try:
-            # Call the LLM
-            result = llm.invoke(prompt)
+        # Call the LLM with retries
+        for attempt in range(max_retries):
+            try:
+                # Call the LLM
+                result = llm.invoke(prompt)
 
-            # For non-JSON support models, we need to extract and parse the JSON manually
-            if model_info and not model_info.has_json_mode():
-                parsed_result = extract_json_from_response(result.content)
-                if parsed_result:
-                    return pydantic_model(**parsed_result)
-            else:
-                return result
+                # For non-JSON support models, we need to extract and parse the JSON manually
+                if model_info and not model_info.has_json_mode():
+                    parsed_result = extract_json_from_response(result.content)
+                    if parsed_result:
+                        return pydantic_model(**parsed_result)
+                else:
+                    return result
 
-        except Exception as e:
-            if agent_name:
-                progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}")
+            except Exception as e:
+                if agent_name:
+                    progress.update_status(agent_name, None, f"Error - retry {attempt + 1}/{max_retries}")
 
-            if attempt == max_retries - 1:
-                print(f"Error in LLM call after {max_retries} attempts: {e}")
-                # Use default_factory if provided, otherwise create a basic default
-                if default_factory:
-                    return default_factory()
-                return create_default_response(pydantic_model)
+                if attempt == max_retries - 1:
+                    print(f"Error in LLM call after {max_retries} attempts: {e}")
+                    # Use default_factory if provided, otherwise create a basic default
+                    if default_factory:
+                        return default_factory()
+                    return create_default_response(pydantic_model)
 
-    # This should never be reached due to the retry logic above
-    return create_default_response(pydantic_model)
+        # This should never be reached due to the retry logic above
+        return create_default_response(pydantic_model)
 
 
 def create_default_response(model_class: type[BaseModel]) -> BaseModel:

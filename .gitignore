@@ -50,6 +50,15 @@ Thumbs.db
 # PDF files
 *.pdf
 
+# JSON files
+*.json
+
+# CSV files
+*.csv
+
+# api.log files
+api.log
+
 # Frontend
 node_modules
 

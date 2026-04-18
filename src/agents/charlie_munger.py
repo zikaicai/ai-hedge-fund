@@ -72,7 +72,6 @@ def charlie_munger_agent(state: AgentState, agent_id: str = "charlie_munger_agen
         # Munger avoids businesses with frequent negative press
         company_news = get_company_news(
             ticker,
-            end_date,
             limit=10,
             api_key=api_key,
         )

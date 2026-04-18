@@ -23,7 +23,7 @@ def add_common_args(
     parser.add_argument(
         "--tickers",
         type=str,
-        required=require_tickers,
+        default="AAPL,MSFT,NVDA,TSLA,AMZN,META,AMD,GOOGL",
         help="Comma-separated list of stock ticker symbols (e.g., AAPL,MSFT,GOOGL)",
     )
     if include_analyst_flags:
@@ -77,6 +77,7 @@ def select_analysts(flags: dict | None = None) -> list[str]:
     if flags and flags.get("analysts"):
         return [a.strip() for a in flags["analysts"].split(",") if a.strip()]
 
+    '''
     choices = questionary.checkbox(
         "Select your AI analysts.",
         choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
@@ -91,6 +92,9 @@ def select_analysts(flags: dict | None = None) -> list[str]:
             ]
         ),
     ).ask()
+    '''
+
+    choices = ['cathie_wood', 'peter_lynch', 'phil_fisher', 'stanley_druckenmiller', 'warren_buffett', 'llm_agent']
 
     if not choices:
         print("\n\nInterrupt received. Exiting...")
@@ -150,6 +154,7 @@ def select_model(use_ollama: bool, model_flag: str | None = None) -> tuple[str, 
             f"\nSelected {Fore.CYAN}Ollama{Style.RESET_ALL} model: {Fore.GREEN + Style.BRIGHT}{model_name}{Style.RESET_ALL}\n"
         )
     else:
+        '''
         model_choice = questionary.select(
             "Select your LLM model:",
             choices=[questionary.Choice(display, value=(name, provider)) for display, name, provider in LLM_ORDER],
@@ -162,6 +167,9 @@ def select_model(use_ollama: bool, model_flag: str | None = None) -> tuple[str, 
                 ]
             ),
         ).ask()
+        '''
+
+        model_choice = ('gpt-5.4', 'OpenAI')
 
         if not model_choice:
             print("\n\nInterrupt received. Exiting...")
@@ -244,15 +252,15 @@ def parse_cli_inputs(
         "--initial-capital",
         dest="initial_cash",
         type=float,
-        default=100000.0,
-        help="Initial cash position (alias: --initial-capital). Defaults to 100000.0",
+        default=10000.0,
+        help="Initial cash position (alias: --initial-capital). Defaults to 10000.0",
     )
     parser.add_argument(
         "--margin-requirement",
         dest="margin_requirement",
         type=float,
-        default=0.0,
-        help="Initial margin requirement ratio for shorts (e.g., 0.5 for 50%%). Defaults to 0.0",
+        default=0.5,
+        help="Initial margin requirement ratio for shorts (e.g., 0.5 for 50%%). Defaults to 0.5",
     )
 
     if include_reasoning_flag:

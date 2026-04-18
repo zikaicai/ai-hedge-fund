@@ -70,7 +70,7 @@ def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"
         insider_trades = get_insider_trades(ticker, end_date=end_date, start_date=start_date)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        news = get_company_news(ticker, end_date=end_date, start_date=start_date, limit=250)
+        news = get_company_news(ticker, limit=10)
 
         progress.update_status(agent_id, ticker, "Fetching market cap")
         market_cap = get_market_cap(ticker, end_date, api_key=api_key)

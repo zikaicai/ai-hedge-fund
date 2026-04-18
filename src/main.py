@@ -1,4 +1,5 @@
 import sys
+import os
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
@@ -20,12 +21,17 @@ import argparse
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import json
+import yfinance as yf
+from pathlib import Path
+from src.data.cache import get_cache
 
 # Load environment variables from .env file
 load_dotenv()
 
 init(autoreset=True)
 
+# Global cache instance
+_cache = get_cache()
 
 def parse_hedge_fund_response(response):
     """Parses a JSON string and returns a dictionary."""
@@ -41,6 +47,55 @@ def parse_hedge_fund_response(response):
         print(f"Unexpected error while parsing response: {e}\nResponse: {repr(response)}")
         return None
 
+
+def update_prices(tickers=['AAPL', 'MSFT', 'NVDA', 'TSLA'], cache_file="cache.json",start_date=None, end_date=None):
+    # load existing cache or init
+    if Path(cache_file).exists():
+        with open(cache_file, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    else:
+        cache = {"prices": {}}
+    
+    for ticker in tickers:
+        key_name = f"{ticker}_{start_date}_{end_date}"
+        
+        # fetch data
+        df = yf.download(ticker, start=start_date, progress=False, auto_adjust=False)
+        
+        if df.empty:
+            print(f"No data for {ticker}")
+            continue
+        
+        # transform to list of dicts
+        records = []
+        for idx, row in df.iterrows():
+            records.append({
+                "open": round(row["Open"].item(), 2),
+                "close": round(row["Close"].item(), 2),
+                "high": round(row["High"].item(), 2),
+                "low": round(row["Low"].item(), 2),
+                "volume": int(row["Volume"].item()),
+                "time": idx.strftime("%Y-%m-%dT%H:%M:%SZ")
+            })
+        
+        # remove old keys for this ticker
+        old_keys = [k for k in cache["prices"].keys() if k.startswith(f"{ticker}_")]
+        for k in old_keys:
+            del cache["prices"][k]
+
+        old_keys = [k for k in cache["company_news"].keys() if k.startswith(f"{ticker}_")]
+        for k in old_keys:
+            del cache["company_news"][k]
+        
+        # insert new data
+        cache["prices"][key_name] = records
+    
+    # persist
+    with open(cache_file, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=2)
+
+    print(f"Updated cache.json for tickers: {', '.join(tickers)}")
+    _cache._load_from_file()
 
 ##### Run the Hedge Fund #####
 def run_hedge_fund(
@@ -165,6 +220,13 @@ if __name__ == "__main__":
             for ticker in tickers
         },
     }
+
+    if os.path.exists("portfolio.json"):
+        with open("portfolio.json", "r") as f:
+            portfolio = json.load(f)
+
+    update_prices(tickers=tickers, cache_file="cache.json", start_date=inputs.start_date, end_date=inputs.end_date)
+    #exit(0)
 
     result = run_hedge_fund(
         tickers=tickers,

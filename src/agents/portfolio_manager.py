@@ -107,6 +107,8 @@ def compute_allowed_actions(
     margin_used = float(portfolio.get("margin_used", 0.0))
     equity = float(portfolio.get("equity", cash))
 
+    available_cash = max(0, cash - 2.4 * margin_used)
+
     for ticker in tickers:
         price = float(current_prices.get(ticker, 0.0))
         pos = positions.get(
@@ -120,28 +122,29 @@ def compute_allowed_actions(
         # Start with zeros
         actions = {"buy": 0, "sell": 0, "short": 0, "cover": 0, "hold": 0}
 
-        # Long side
-        if long_shares > 0:
-            actions["sell"] = long_shares
-        if cash > 0 and price > 0:
-            max_buy_cash = int(cash // price)
+        if available_cash > 0 and price > 0:
+            max_buy_cash = int(available_cash // price)
             max_buy = max(0, min(max_qty, max_buy_cash))
             if max_buy > 0:
                 actions["buy"] = max_buy
 
-        # Short side
-        if short_shares > 0:
-            actions["cover"] = short_shares
         if price > 0 and max_qty > 0:
             if margin_requirement <= 0.0:
                 # If margin requirement is zero or unset, only cap by max_qty
                 max_short = max_qty
             else:
-                available_margin = max(0.0, (equity / margin_requirement) - margin_used)
+                available_margin = max(0.0, available_cash / margin_requirement)
                 max_short_margin = int(available_margin // price)
                 max_short = max(0, min(max_qty, max_short_margin))
             if max_short > 0:
                 actions["short"] = max_short
+
+        if long_shares > 0:
+            actions["sell"] = long_shares
+            actions["short"] = 0
+        if short_shares > 0:
+            actions["cover"] = short_shares
+            actions["buy"] = 0
 
         # Hold always valid
         actions["hold"] = 0
@@ -172,6 +175,45 @@ def _compact_signals(signals_by_ticker: dict[str, dict]) -> dict[str, dict]:
                 compact[agent] = {"sig": sig, "conf": conf}
         out[t] = compact
     return out
+
+
+def _compact_portfolio(portfolio: dict, tickers: list[str], current_prices: dict[str, float]) -> dict:
+    """Create a compact, token-efficient summary of the portfolio for the tickers sent to the LLM.
+
+    Includes per-ticker long/short, cost bases, current price, unrealized P/L and percent P/L, plus a small summary.
+    """
+    positions = portfolio.get("positions", {}) or {}
+    out: dict[str, dict] = {}
+    for t in tickers:
+        pos = positions.get(t, {})
+        long = int(pos.get("long", 0) or 0)
+        short = int(pos.get("short", 0) or 0)
+        long_cb = float(pos.get("long_cost_basis", 0.0) or 0.0)
+        short_cb = float(pos.get("short_cost_basis", 0.0) or 0.0)
+        price = float(current_prices.get(t, 0.0) or 0.0)
+        unrealized_pl = long * (price - long_cb) + short * (short_cb - price)
+        pct_pl = None
+        if long > 0 and long_cb > 0:
+            pct_pl = (price / long_cb - 1.0) * 100.0
+        elif short > 0 and short_cb > 0:
+            pct_pl = (short_cb / price - 1.0) * 100.0 if price > 0 else None
+        out[t] = {
+            "long": long,
+            "short": short,
+            "long_cost_basis": round(long_cb, 2),
+            "short_cost_basis": round(short_cb, 2),
+            "current_price": round(price, 2),
+            "unrealized_pl": round(unrealized_pl, 2),
+            "pct_pl": round(pct_pl, 1) if pct_pl is not None else None,
+        }
+
+    return {
+        "positions": out,
+        "cash": portfolio.get("cash"),
+        "equity": portfolio.get("equity"),
+        "margin_used": portfolio.get("margin_used"),
+        "margin_requirement": portfolio.get("margin_requirement"),
+    }
 
 
 def generate_trading_decision(
@@ -213,13 +255,15 @@ def generate_trading_decision(
         [
             (
                 "system",
-                "You are a portfolio manager.\n"
-                "Inputs per ticker: analyst signals and allowed actions with max qty (already validated).\n"
+                "You are a portfolio manager agent making next-day (T+1) trading decisions.\n"
+                "Inputs per ticker: analyst signals and allowed actions with max qty (already validated). You will also be provided the portfolio (positions, cost basis, cash, equity, margin_used, margin_requirement). Synthesize a weighted consensus from analyst signals alongside portfolio status to decide whether to hold, add, or liquidate positions.\n"
                 "Pick one allowed action per ticker and a quantity ≤ the max. "
-                "Keep reasoning very concise (max 100 chars). No cash or margin math. Return JSON only."
+                "Only choose 'buy' or 'short' when you are >= 76% confident (confidence is an integer 0-100). Otherwise prefer 'hold' or the permitted liquidation 'sell'/'cover' actions.\n"
+                "Keep reasoning very concise (max 100 chars). Return JSON only."
             ),
             (
                 "human",
+                "Portfolio:\n{portfolio}\n\n"
                 "Signals:\n{signals}\n\n"
                 "Allowed:\n{allowed}\n\n"
                 "Format:\n"
@@ -232,11 +276,22 @@ def generate_trading_decision(
         ]
     )
 
+    compact_portfolio = _compact_portfolio(portfolio, tickers_for_llm, current_prices)
+
     prompt_data = {
+        "portfolio": json.dumps(compact_portfolio, separators=(",", ":"), ensure_ascii=False),
         "signals": json.dumps(compact_signals, separators=(",", ":"), ensure_ascii=False),
         "allowed": json.dumps(compact_allowed, separators=(",", ":"), ensure_ascii=False),
     }
     prompt = template.invoke(prompt_data)
+
+    # print(prompt)
+    # Save prompt to a file for inspection instead of printing to stdout
+    try:
+        with open("prompt.txt", "w", encoding="utf-8") as f:
+            f.write(str(prompt))
+    except Exception:
+        pass
 
     # Default factory fills remaining tickers as hold if the LLM fails
     def create_default_portfolio_output():

@@ -10,23 +10,43 @@
     "provider": "OpenAI"
   },
   {
+    "display_name": "GPT-5",
+    "model_name": "gpt-5",
+    "provider": "OpenAI"
+  },
+  {
+    "display_name": "GPT-5 Mini",
+    "model_name": "gpt-5-mini",
+    "provider": "OpenAI"
+  },
+  {
+    "display_name": "o3",
+    "model_name": "o3",
+    "provider": "OpenAI"
+  },
+  {
+    "display_name": "o3 Mini",
+    "model_name": "o3-mini",
+    "provider": "OpenAI"
+  },
+  {
     "display_name": "GPT-4.1",
     "model_name": "gpt-4.1",
     "provider": "OpenAI"
   },
   {
-    "display_name": "Claude Sonnet 4.6",
-    "model_name": "claude-sonnet-4-6",
+    "display_name": "Claude Sonnet 4.5",
+    "model_name": "claude-sonnet-4-5-20250929",
     "provider": "Anthropic"
   },
   {
-    "display_name": "Claude Haiku 4.6",
-    "model_name": "claude-haiku-4-6",
+    "display_name": "Claude Haiku 4.5",
+    "model_name": "claude-haiku-4-5-20251001",
     "provider": "Anthropic"
   },
   {
-    "display_name": "Claude Opus 4.7",
-    "model_name": "claude-opus-4-7",
+    "display_name": "Claude Opus 4.1",
+    "model_name": "claude-opus-4-1-20250805",
     "provider": "Anthropic"
   },
   {
@@ -40,23 +60,18 @@
     "provider": "DeepSeek"
   },
   {
-    "display_name": "Kimi K2",
-    "model_name": "kimi-k2-0905-preview",
-    "provider": "Kimi"
-  },
-  {
-    "display_name": "Kimi Latest (128k)",
-    "model_name": "kimi-latest",
-    "provider": "Kimi"
-  },
-  {
-    "display_name": "Moonshot v1 128k",
-    "model_name": "moonshot-v1-128k",
-    "provider": "Kimi"
+    "display_name": "Gemini 3 Flash",
+    "model_name": "gemini-3-flash-preview",
+    "provider": "Google"
   },
   {
     "display_name": "Gemini 3 Pro",
     "model_name": "gemini-3-pro-preview",
+    "provider": "Google"
+  },
+  {
+    "display_name": "Gemini 2.5 Pro",
+    "model_name": "gemini-2.5-pro",
     "provider": "Google"
   },
   {

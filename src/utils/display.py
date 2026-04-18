@@ -155,12 +155,11 @@ def print_trading_output(result: dict) -> None:
     print(f"\n{Fore.WHITE}{Style.BRIGHT}PORTFOLIO SUMMARY:{Style.RESET_ALL}")
     portfolio_data = []
     
-    # Extract portfolio manager reasoning (common for all tickers)
-    portfolio_manager_reasoning = None
+    # Collect portfolio manager reasoning for all tickers
+    portfolio_manager_reasonings = {}
     for ticker, decision in decisions.items():
         if decision.get("reasoning"):
-            portfolio_manager_reasoning = decision.get("reasoning")
-            break
+            portfolio_manager_reasonings[ticker] = decision.get("reasoning")
             
     analyst_signals = result.get("analyst_signals", {})
     for ticker, decision in decisions.items():
@@ -188,6 +187,15 @@ def print_trading_output(result: dict) -> None:
                     elif signal == "NEUTRAL":
                         neutral_count += 1
 
+        # Prepare per-ticker portfolio reasoning (use full text)
+        pm_reasoning = portfolio_manager_reasonings.get(ticker, "")
+        wrapped_pm_reasoning = ""
+        if pm_reasoning:
+            if isinstance(pm_reasoning, dict):
+                wrapped_pm_reasoning = json.dumps(pm_reasoning, indent=2)
+            else:
+                wrapped_pm_reasoning = str(pm_reasoning)
+
         portfolio_data.append(
             [
                 f"{Fore.CYAN}{ticker}{Style.RESET_ALL}",
@@ -197,6 +205,7 @@ def print_trading_output(result: dict) -> None:
                 f"{Fore.GREEN}{bullish_count}{Style.RESET_ALL}",
                 f"{Fore.RED}{bearish_count}{Style.RESET_ALL}",
                 f"{Fore.YELLOW}{neutral_count}{Style.RESET_ALL}",
+                f"{Fore.WHITE}{wrapped_pm_reasoning}{Style.RESET_ALL}",
             ]
         )
 
@@ -208,6 +217,7 @@ def print_trading_output(result: dict) -> None:
         f"{Fore.WHITE}Bullish",
         f"{Fore.WHITE}Bearish",
         f"{Fore.WHITE}Neutral",
+        f"{Fore.WHITE}Reasoning",
     ]
     
     # Print the portfolio summary table
@@ -216,42 +226,10 @@ def print_trading_output(result: dict) -> None:
             portfolio_data,
             headers=headers,
             tablefmt="grid",
-            colalign=("left", "center", "right", "right", "center", "center", "center"),
+            colalign=("left", "center", "right", "right", "center", "center", "center", "left"),
         )
     )
     
-    # Print Portfolio Manager's reasoning if available
-    if portfolio_manager_reasoning:
-        # Handle different types of reasoning (string, dict, etc.)
-        reasoning_str = ""
-        if isinstance(portfolio_manager_reasoning, str):
-            reasoning_str = portfolio_manager_reasoning
-        elif isinstance(portfolio_manager_reasoning, dict):
-            # Convert dict to string representation
-            reasoning_str = json.dumps(portfolio_manager_reasoning, indent=2)
-        else:
-            # Convert any other type to string
-            reasoning_str = str(portfolio_manager_reasoning)
-            
-        # Wrap long reasoning text to make it more readable
-        wrapped_reasoning = ""
-        current_line = ""
-        # Use a fixed width of 60 characters to match the table column width
-        max_line_length = 60
-        for word in reasoning_str.split():
-            if len(current_line) + len(word) + 1 > max_line_length:
-                wrapped_reasoning += current_line + "\n"
-                current_line = word
-            else:
-                if current_line:
-                    current_line += " " + word
-                else:
-                    current_line = word
-        if current_line:
-            wrapped_reasoning += current_line
-            
-        print(f"\n{Fore.WHITE}{Style.BRIGHT}Portfolio Strategy:{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{wrapped_reasoning}{Style.RESET_ALL}")
 
 
 def print_backtest_results(table_rows: list) -> None:
